@@ -16,6 +16,7 @@ export interface Transaction {
   amount: number;
   type: Category;
   merchant: string | null;
+  categoryName?: string; // e.g. Food, Shopping, Travel
   account: string | null;
   txnId: string | null;
   timestamp: number;

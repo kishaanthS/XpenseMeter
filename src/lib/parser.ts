@@ -36,10 +36,28 @@ const TRANSFER_PATTERNS = [
   /self transfer/i
 ];
 
+export const DEFAULT_CATEGORY_MAP: Record<string, string[]> = {
+  'Food': ['swiggy', 'zomato', 'pizza', 'kfc', 'mcdonalds', 'starbucks', 'restaurant', 'cafe', 'dine', 'hotel'],
+  'Shopping': ['amazon', 'flipkart', 'myntra', 'mall', 'store', 'retail', 'dmart', 'blinkit', 'zepto'],
+  'Travel': ['uber', 'ola', 'irctc', 'indigo', 'petrol', 'fuel', 'shell', 'hpcl', 'rapido', 'train', 'flight'],
+  'Entertainment': ['netflix', 'spotify', 'pvr', 'cine', 'bookmyshow', 'hotstar'],
+  'Salary': ['salary', 'credited by corp', 'stipend'],
+  'Health': ['apollo', 'pharmacy', 'hospital', 'medplus', 'health'],
+  'Investment': ['zerodha', 'groww', 'mutual fund', 'sip', 'stock'],
+};
+
+function detectCategory(body: string, merchant: string | null, mappings: Record<string, string[]>): string {
+  const text = (body + ' ' + (merchant || '')).toLowerCase();
+  for (const [cat, keywords] of Object.entries(mappings)) {
+    if (keywords.some(kw => text.includes(kw.toLowerCase()))) return cat;
+  }
+  return 'Personal';
+}
+
 /**
  * Robust Regex Parser Engine
  */
-export function parseSMS(msg: SMSMessage): Transaction | null {
+export function parseSMS(msg: SMSMessage, mappings: Record<string, string[]> = DEFAULT_CATEGORY_MAP): Transaction | null {
   const body = msg.body;
   let score = 0;
   
@@ -96,23 +114,24 @@ export function parseSMS(msg: SMSMessage): Transaction | null {
     type = Category.EXPENSE;
   }
 
-  // Extract Merchant (Simplified logic: look for strings after "to" or before "debited")
+  // Extract Merchant
   let merchant: string | null = null;
-  const merchantMatch = body.match(/(?:to|at|from)\s+([A-Z0-9\s.]{3,30})(?:\s|on|at|$)/i);
+  const merchantMatch = body.match(/(?:to|at|from|by|vpa)\s+([A-Z0-9\s.\-_]{3,30})(?:\s|on|at|ref|$)/i);
   if (merchantMatch) {
     merchant = merchantMatch[1].trim();
   }
 
   return {
-    id: `tx_${msg.sender}_${msg.timestamp}_${amount}`, // Base ID
+    id: `tx_${msg.sender}_${msg.timestamp}_${amount}`, 
     amount,
     type,
     merchant,
+    categoryName: detectCategory(body, merchant, mappings),
     account: accountMatch ? accountMatch[3] : (upiMatch ? 'UPI' : null),
     txnId,
     timestamp: msg.timestamp,
     rawMessage: body,
-    confidence: score / 11, // Normalized confidence
+    confidence: score / 11, 
   };
 }
 

@@ -5,13 +5,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Transaction, SMSMessage, Category } from '../types';
-import { parseSMS, isDuplicate } from '../lib/parser';
+import { parseSMS, isDuplicate, DEFAULT_CATEGORY_MAP } from '../lib/parser';
 import { GoogleGenAI, Type } from "@google/genai";
 
 const STORAGE_KEY = 'xpensemeter_transactions';
+const MAPPINGS_KEY = 'xpensemeter_category_mappings';
 
 export function useXpense() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categoryMappings, setCategoryMappings] = useState<Record<string, string[]>>(DEFAULT_CATEGORY_MAP);
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Load from storage on init
@@ -24,12 +26,25 @@ export function useXpense() {
         console.error('Failed to load transactions', e);
       }
     }
+
+    const savedMappings = localStorage.getItem(MAPPINGS_KEY);
+    if (savedMappings) {
+      try {
+        setCategoryMappings(JSON.parse(savedMappings));
+      } catch (e) {
+        console.error('Failed to load mappings', e);
+      }
+    }
   }, []);
 
   // Save to storage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
   }, [transactions]);
+
+  useEffect(() => {
+    localStorage.setItem(MAPPINGS_KEY, JSON.stringify(categoryMappings));
+  }, [categoryMappings]);
 
   const addTransactions = useCallback((newMsgs: SMSMessage[], sinceTimestamp: number = 0) => {
     setIsSyncing(true);
@@ -42,7 +57,7 @@ export function useXpense() {
       const filteredMsgs = newMsgs.filter(m => m.timestamp >= sinceTimestamp);
 
       filteredMsgs.forEach(msg => {
-        const tx = parseSMS(msg);
+        const tx = parseSMS(msg, categoryMappings);
         if (tx && !isDuplicate(tx, [...transactions, ...processed])) {
           processed.push(tx);
         }
@@ -51,7 +66,21 @@ export function useXpense() {
       setTransactions(prev => [...processed, ...prev].sort((a, b) => b.timestamp - a.timestamp));
       setIsSyncing(false);
     }, 1500);
-  }, [transactions]);
+  }, [transactions, categoryMappings]);
+
+  const updateMappings = (newMappings: Record<string, string[]>) => {
+    setCategoryMappings(newMappings);
+    // Re-parse existing transactions to update their categories if needed
+    setTransactions(prev => prev.map(tx => {
+      const reParsed = parseSMS({
+        id: tx.id,
+        body: tx.rawMessage,
+        sender: 'UPDATED', // Not really used for re-parsing
+        timestamp: tx.timestamp
+      }, newMappings);
+      return reParsed ? { ...tx, categoryName: reParsed.categoryName } : tx;
+    }));
+  };
 
   const clearAll = () => {
     setTransactions([]);
@@ -148,6 +177,8 @@ export function useXpense() {
     isSyncing,
     clearAll,
     deleteTransaction,
-    refineWithAi
+    refineWithAi,
+    categoryMappings,
+    updateMappings
   };
 }

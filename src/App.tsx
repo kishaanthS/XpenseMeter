@@ -13,7 +13,9 @@ import {
   Terminal,
   ShieldCheck,
   Eraser,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
@@ -29,7 +31,9 @@ export default function App() {
     isSyncing, 
     clearAll, 
     deleteTransaction,
-    refineWithAi 
+    refineWithAi,
+    categoryMappings,
+    updateMappings
   } = useXpense();
 
   const [activeTab, setActiveTab] = useState('Home');
@@ -39,7 +43,49 @@ export default function App() {
   const [rawSmsInput, setRawSmsInput] = useState('');
   const [syncSinceDate, setSyncSinceDate] = useState(format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
 
+  const [newKeyword, setNewKeyword] = useState('');
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Food');
+
   const stats = getStats();
+
+  const handleAddKeyword = () => {
+    if (!newKeyword.trim()) return;
+    
+    let targetCat = selectedCategory;
+    let updatedMappings = { ...categoryMappings };
+
+    if (selectedCategory === 'NEW') {
+      if (!newCategoryName.trim()) return;
+      targetCat = newCategoryName.trim();
+      updatedMappings[targetCat] = [];
+      setNewCategoryName('');
+      setSelectedCategory(targetCat);
+    }
+
+    const currentKeywords = updatedMappings[targetCat] || [];
+    if (!currentKeywords.includes(newKeyword.trim().toLowerCase())) {
+        updatedMappings[targetCat] = [...currentKeywords, newKeyword.trim().toLowerCase()];
+        updateMappings(updatedMappings);
+    }
+    setNewKeyword('');
+  };
+
+  const handleRemoveKeyword = (cat: string, kw: string) => {
+    const updated = {
+        ...categoryMappings,
+        [cat]: categoryMappings[cat].filter(k => k !== kw)
+    };
+    updateMappings(updated);
+  };
+
+  const handleRemoveCategory = (cat: string) => {
+    const { [cat]: _, ...updated } = categoryMappings;
+    updateMappings(updated);
+    if (selectedCategory === cat) {
+        setSelectedCategory(Object.keys(updated)[0] || 'Food');
+    }
+  };
 
   const filteredTransactions = useMemo(() => {
     return filter === 'ALL' 
@@ -50,7 +96,6 @@ export default function App() {
   const handleSyncSubmit = () => {
     if (!rawSmsInput.trim()) return;
     
-    setIsSyncing(true);
     const sinceTimestamp = new Date(syncSinceDate).getTime();
     
     // Simulate deep scan progress
@@ -68,7 +113,6 @@ export default function App() {
       addTransactions(messages, sinceTimestamp);
       setRawSmsInput('');
       setShowSyncModal(false);
-      setIsSyncing(false);
     }, 1500);
   };
 
@@ -191,19 +235,87 @@ export default function App() {
                 <div className="flex justify-between items-center bg-blue-600/5 p-4 rounded-2xl border border-blue-600/20">
                    <div className="flex items-center gap-3">
                      <ShieldCheck className="text-blue-400" />
-                     <span className="text-sm font-bold text-blue-100 uppercase tracking-widest">Active Heuristics</span>
+                     <span className="text-sm font-bold text-blue-100 uppercase tracking-widest">Heuristic Rules</span>
                    </div>
-                   <span className="text-[10px] bg-blue-600/20 px-2 py-1 rounded text-blue-400 font-bold">STABLE</span>
+                   <span className="text-[10px] bg-blue-600/20 px-2 py-1 rounded text-blue-400 font-bold">ACTIVE</span>
+                </div>
+
+                {/* Category Mapping Manager */}
+                <div className="bg-[#16161A] border border-white/5 rounded-[2.5rem] p-6 space-y-6">
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-widest">Category Mappings</h3>
+                    <p className="text-[10px] text-zinc-600">Associations between keywords and buckets</p>
+                  </div>
+
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                    {Object.entries(categoryMappings).map(([cat, keywords]) => (
+                      <div key={cat} className="space-y-2">
+                        <div className="flex justify-between items-center group/cat">
+                          <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">{cat}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8px] text-zinc-700 font-bold">{(keywords as string[]).length} KEYWORDS</span>
+                            <button onClick={() => handleRemoveCategory(cat)} className="text-zinc-800 hover:text-rose-500 opacity-0 group-hover/cat:opacity-100 transition-opacity">
+                              <Trash size={10} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {(keywords as string[]).map(kw => (
+                            <div key={kw} className="bg-white/5 border border-white/5 px-2 py-1 rounded-lg flex items-center gap-1.5 group">
+                              <span className="text-[10px] text-zinc-400">{kw}</span>
+                              <button onClick={() => handleRemoveKeyword(cat, kw)} className="text-zinc-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <X size={10} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-4 border-t border-white/5 space-y-3">
+                    {selectedCategory === 'NEW' && (
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] text-zinc-600 font-bold uppercase">Category Name</label>
+                        <input 
+                           type="text" 
+                           placeholder="e.g. Gym, Rent..."
+                           value={newCategoryName}
+                           onChange={(e) => setNewCategoryName(e.target.value)}
+                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
+                         />
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                       <select 
+                         value={selectedCategory}
+                         onChange={(e) => setSelectedCategory(e.target.value)}
+                         className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none"
+                       >
+                         {Object.keys(categoryMappings).map(c => <option key={c} value={c}>{c}</option>)}
+                         <option value="NEW">+ Create New</option>
+                       </select>
+                       <div className="relative">
+                         <input 
+                           type="text" 
+                           placeholder="Add keyword..."
+                           value={newKeyword}
+                           onChange={(e) => setNewKeyword(e.target.value)}
+                           onKeyDown={(e) => e.key === 'Enter' && handleAddKeyword()}
+                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
+                         />
+                         <button onClick={handleAddKeyword} className="absolute right-2 top-1.5 text-blue-500">
+                           <Plus size={16} />
+                         </button>
+                       </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   <RuleItem title="Sent Patterns" desc="Matches keywords like 'Sent', 'Debited', 'Paid' followed by currency symbols." active />
                   <RuleItem title="Income Patterns" desc="Detects 'Credited', 'Received', 'Salary' for inflow classification." active />
                   <RuleItem title="Account Extraction" desc="Pulls account endings like 'A/c x1234' or 'ending in 4455'." active />
-                  <RuleItem title="Merchant Refinement" desc="Extracts merchant names from 'at', 'to', or 'from' prepositions." active />
-                  <RuleItem title="UPI Detection" desc="Prioritizes UPI Reference numbers and VPA addresses." active />
-                  <RuleItem title="Anomalous Spend" desc="Flags transactions that are 3x higher than your daily average." active />
-                  <RuleItem title="Privacy Filter" desc="Redacts sensitive bank details and account numbers from raw logs." active />
                 </div>
               </motion.div>
             )}
@@ -454,7 +566,12 @@ function TxItem({ tx, onClick }: { tx: Transaction, onClick: () => void, key?: s
           {tx.type === Category.EXPENSE ? <Zap size={18} /> : <TrendingUp size={18} />}
         </div>
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-zinc-100 line-clamp-1">{tx.merchant || 'Transaction'}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-zinc-100 line-clamp-1">{tx.merchant || 'Transaction'}</span>
+            {tx.categoryName && (
+              <span className="text-[8px] bg-white/5 border border-white/5 px-1 rounded text-zinc-500 font-bold uppercase tracking-wider">{tx.categoryName}</span>
+            )}
+          </div>
           <span className="text-[10px] text-zinc-600 font-bold">{format(tx.timestamp, 'MMM dd · HH:mm')}</span>
         </div>
       </div>
