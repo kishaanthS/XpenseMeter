@@ -202,6 +202,8 @@ export default function App() {
                   <RuleItem title="Account Extraction" desc="Pulls account endings like 'A/c x1234' or 'ending in 4455'." active />
                   <RuleItem title="Merchant Refinement" desc="Extracts merchant names from 'at', 'to', or 'from' prepositions." active />
                   <RuleItem title="UPI Detection" desc="Prioritizes UPI Reference numbers and VPA addresses." active />
+                  <RuleItem title="Anomalous Spend" desc="Flags transactions that are 3x higher than your daily average." active />
+                  <RuleItem title="Privacy Filter" desc="Redacts sensitive bank details and account numbers from raw logs." active />
                 </div>
               </motion.div>
             )}
@@ -226,11 +228,43 @@ export default function App() {
 
                   <div className="flex justify-between items-center">
                     <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-white">Base Currency</span>
+                      <span className="text-xs text-zinc-600">Set default extraction currency (INR/USD)</span>
+                    </div>
+                    <span className="text-xs font-bold text-blue-500">INR</span>
+                  </div>
+
+                  <div className="h-[1px] bg-white/5 w-full" />
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
                       <span className="text-sm font-semibold text-white">AI Refinement (Gemini)</span>
                       <span className="text-xs text-zinc-600">Use AI for low-confidence messages</span>
                     </div>
                     <div className="w-10 h-5 bg-blue-600 rounded-full relative">
                        <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm" />
+                    </div>
+                  </div>
+
+                  <div className="h-[1px] bg-white/5 w-full" />
+
+                  <div className="flex justify-between items-center opacity-40">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-white">Daily Budget Goal</span>
+                      <span className="text-xs text-zinc-600">Get notified when daily limit is reached</span>
+                    </div>
+                    <span className="text-[10px] bg-zinc-800 px-2 py-1 rounded text-zinc-500 font-bold">PRO</span>
+                  </div>
+
+                  <div className="h-[1px] bg-white/5 w-full" />
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold text-white">SMS Notification Sync</span>
+                      <span className="text-xs text-zinc-600">Background scanning (Native only)</span>
+                    </div>
+                    <div className="w-10 h-5 bg-zinc-800 rounded-full relative">
+                       <div className="w-4 h-4 bg-zinc-600 rounded-full absolute top-0.5 left-0.5 shadow-sm" />
                     </div>
                   </div>
 
@@ -377,8 +411,12 @@ export default function App() {
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setRawSmsInput(`Sent Rs 1200.00 to Pizza Hut UPI Ref 9123812\nCredited with INR 50000.00 - Google Salary\nDebited Rs 400.00 at Starbucks x9912`)} className="px-4 py-3 bg-white/5 text-[10px] font-bold rounded-xl active:bg-white/10">LOAD SAMPLES</button>
-                  <button onClick={handleSyncSubmit} className="flex-1 py-3 bg-blue-600 rounded-xl font-bold shadow-lg shadow-blue-900/40">RUN PARSER</button>
+                  <button onClick={handleSyncSubmit} className="flex-1 py-3 bg-blue-600 rounded-xl font-bold shadow-lg shadow-blue-900/40">SIMULATE SMS SCAN</button>
                 </div>
+                <p className="text-[9px] text-zinc-700 text-center uppercase tracking-tighter font-bold">
+                  Note: Browser security prevents direct SMS access. <br/>
+                  Native APK build required for live background sync.
+                </p>
               </motion.div>
             </div>
           )}
