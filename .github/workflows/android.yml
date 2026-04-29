@@ -31,8 +31,10 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: Sync Capacitor
-        run: npx cap sync android
+      - name: Copy Web Assets to Android
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r dist/* android/app/src/main/assets/www/
 
       - name: Build Android APK
         run: |

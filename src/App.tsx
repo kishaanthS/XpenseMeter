@@ -192,7 +192,7 @@ export default function App() {
         <header className="px-6 pt-10 pb-4 flex justify-between items-center z-20 bg-[#0E0E12]/80 backdrop-blur-lg sticky top-0 border-b border-white/5">
           <div>
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <div className="w-10 h-10 bg-linear-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <Zap size={22} className="text-white fill-white" />
               </div>
               <h1 className="text-2xl font-black italic tracking-tighter text-white">XPENSE</h1>
