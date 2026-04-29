@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1E88E5</color>
+    <color name="primary_dark">#1565C0</color>
+    <color name="primary_light">#BBDEFB</color>
+    <color name="accent">#FF6F00</color>
+    <color name="background">#F5F5F5</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="on_surface">#212121</color>
+    <color name="on_surface_secondary">#757575</color>
+    <color name="paid_red">#E53935</color>
+    <color name="received_green">#43A047</color>
+    <color name="card_paid">#FFF3F3</color>
+    <color name="card_received">#F1F8F1</color>
+    <color name="divider">#E0E0E0</color>
+
+    <!-- Chart colors -->
+    <color name="chart_food">#FF7043</color>
+    <color name="chart_shopping">#AB47BC</color>
+    <color name="chart_travel">#42A5F5</color>
+    <color name="chart_entertainment">#FFCA28</color>
+    <color name="chart_health">#EF5350</color>
+    <color name="chart_bills">#26A69A</color>
+    <color name="chart_education">#5C6BC0</color>
+    <color name="chart_salary">#66BB6A</color>
+    <color name="chart_investment">#FFA726</color>
+    <color name="chart_other">#78909C</color>
+</resources>
