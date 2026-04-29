@@ -191,13 +191,13 @@ export default function App() {
         {/* Fixed Header */}
         <header className="px-6 pt-10 pb-4 flex justify-between items-center z-20 bg-[#0E0E12]/80 backdrop-blur-lg sticky top-0 border-b border-white/5">
           <div>
-            <h1 className="text-xl font-black tracking-tighter italic text-white flex items-center gap-2">
-              <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center rotate-3">
-                <Wallet size={16} className="text-white -rotate-3" />
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 bg-indigo-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Zap size={22} className="text-white fill-white" />
               </div>
-              XPENSE
-            </h1>
-            <p className="text-[8px] text-zinc-600 font-bold tracking-[0.2em] mt-1">Manual Ledger v3.2</p>
+              <h1 className="text-2xl font-black italic tracking-tighter text-white">XPENSE</h1>
+            </div>
+            <p className="text-[9px] text-zinc-500 font-bold tracking-[0.3em] mt-1 uppercase">Simple Ledger v1.0</p>
           </div>
           <div className="flex items-center gap-4">
              <button onClick={exportData} className="text-zinc-600 hover:text-blue-400 transition-colors">
@@ -257,8 +257,8 @@ export default function App() {
                            >
                               <ChevronLeft size={18} />
                            </button>
-                           <div className="bg-blue-600/20 px-3 py-1.5 rounded-xl border border-blue-600/20">
-                              <span className="text-[9px] text-blue-400 font-black tracking-tight whitespace-nowrap uppercase">
+                           <div className="bg-zinc-900/50 px-4 py-2 rounded-2xl border border-white/5 shadow-inner">
+                              <span className="text-[10px] text-zinc-300 font-black tracking-tight whitespace-nowrap">
                                 {periodType === 'DAY' ? format(refDate, 'MMM dd, yyyy') : 
                                  periodType === 'WEEK' ? `${format(periodRange.start, 'MMM dd')} - ${format(periodRange.end, 'MMM dd')}` :
                                  periodType === 'MONTH' ? format(refDate, 'MMMM yyyy') : 

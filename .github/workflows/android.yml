@@ -39,6 +39,7 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
+          find app/build/outputs/apk/debug -name "*.apk"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
