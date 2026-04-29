@@ -4,7 +4,7 @@ import {
   Trash2, 
   LayoutDashboard, 
   Settings, 
-  Zap,
+  Zap, 
   TrendingUp,
   X,
   Notebook,
@@ -13,6 +13,7 @@ import {
   Download,
   Calendar,
   ChevronRight,
+  ChevronLeft,
   TrendingDown,
   PieChart as PieChartIcon
 } from 'lucide-react';
@@ -246,15 +247,15 @@ export default function App() {
                       
                       <div className="flex justify-between items-center mb-6">
                         <span className="text-zinc-600 text-[10px] font-black tracking-widest uppercase">Summary</span>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 relative z-30">
                            <button 
                              onClick={(e) => {
                                e.stopPropagation();
                                navigatePeriod('PREV');
                              }} 
-                             className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer z-10"
+                             className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
                            >
-                              <ChevronRight size={16} className="rotate-180" />
+                              <ChevronLeft size={18} />
                            </button>
                            <div className="bg-blue-600/20 px-3 py-1.5 rounded-xl border border-blue-600/20">
                               <span className="text-[9px] text-blue-400 font-black tracking-tight whitespace-nowrap uppercase">
@@ -269,9 +270,9 @@ export default function App() {
                                e.stopPropagation();
                                navigatePeriod('NEXT');
                              }} 
-                             className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer z-10"
+                             className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
                            >
-                              <ChevronRight size={16} />
+                              <ChevronRight size={18} />
                            </button>
                         </div>
                       </div>
