@@ -1,20 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# XpenseMeter
 
-# Run and deploy your AI Studio app
+A native Android expense tracking app built with Kotlin. Track your payments and income with category-based organization and visual analytics.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/78052c23-7d56-4b37-a080-ce0e0c05067d
+- **Paid / Received** - Quick entry for money going out or coming in
+- **Category & Subcategory** - Organized dropdown-based categorization (Food, Shopping, Travel, etc.)
+- **Notes** - Add optional notes to any transaction
+- **Time Filters** - View transactions for Today, This Week, This Month, or All Time
+- **Analytics Dashboard** - Pie charts, bar charts, and trend lines for spending insights
+- **Local Storage** - All data stored locally using Room database
 
-## Run Locally
+## Tech Stack
 
-**Prerequisites:**  Node.js
+- **Language**: Kotlin
+- **Architecture**: MVVM (ViewModel + LiveData + Room)
+- **UI**: Material Design 3 + ViewBinding
+- **Charts**: MPAndroidChart
+- **Database**: Room (SQLite)
+- **Min SDK**: 24 (Android 7.0)
 
+## Build
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+./gradlew assembleDebug
+```
+
+The APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
+
+## Project Structure
+
+```
+app/src/main/java/com/xpense/meter/
+├── data/
+│   ├── db/          # Room database, DAO, converters
+│   ├── model/       # Transaction entity, CategoryMapping
+│   └── repository/  # TransactionRepository
+├── ui/
+│   ├── home/        # HomeFragment, TransactionAdapter
+│   ├── analytics/   # AnalyticsFragment, charts
+│   └── addentry/    # AddEntryBottomSheet
+├── MainActivity.kt
+└── XpenseMeterApp.kt
+```

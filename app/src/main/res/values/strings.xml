@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">XpenseMeter</string>
+    <string name="tab_home">Home</string>
+    <string name="tab_analytics">Analytics</string>
+    <string name="add_entry">Add Entry</string>
+    <string name="paid">Paid</string>
+    <string name="received">Received</string>
+    <string name="amount">Amount</string>
+    <string name="enter_amount">Enter amount</string>
+    <string name="category">Category</string>
+    <string name="subcategory">Subcategory</string>
+    <string name="notes">Notes</string>
+    <string name="enter_notes">Add notes (optional)</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="total_paid">Total Paid</string>
+    <string name="total_received">Total Received</string>
+    <string name="balance">Balance</string>
+    <string name="no_transactions">No transactions yet.\nTap + to add your first entry.</string>
+    <string name="analytics_title">Analytics</string>
+    <string name="spending_by_category">Spending by Category</string>
+    <string name="income_vs_expense">Income vs Expense</string>
+    <string name="monthly_trend">Monthly Trend</string>
+    <string name="select_category">Select category</string>
+    <string name="select_subcategory">Select subcategory</string>
+    <string name="today">Today</string>
+    <string name="this_week">This Week</string>
+    <string name="this_month">This Month</string>
+    <string name="all_time">All Time</string>
+    <string name="confirm_delete">Delete this transaction?</string>
+    <string name="confirm_delete_message">This action cannot be undone.</string>
+    <string name="toggle_theme">Toggle theme</string>
+    <string name="dark_mode">Dark mode</string>
+    <string name="light_mode">Light mode</string>
+</resources>
