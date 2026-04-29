@@ -4,21 +4,19 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background">
+    android:background="?android:attr/colorBackground"
+    android:fitsSystemWindows="true">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/primary"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/primary"
             app:title="@string/app_name"
-            app:titleTextColor="@color/on_primary"
             app:titleTextAppearance="@style/TextAppearance.Material3.HeadlineSmall" />
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -26,6 +24,7 @@
         android:id="@+id/fragment_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginBottom="56dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -33,25 +32,19 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
-        android:layout_margin="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="72dp"
         android:contentDescription="@string/add_entry"
         android:src="@android:drawable/ic_input_add"
         app:backgroundTint="@color/primary"
         app:tint="@color/on_primary"
-        app:layout_anchor="@id/bottom_navigation"
-        app:layout_anchorGravity="top|end"
-        android:layout_marginEnd="24dp"
-        android:layout_marginBottom="16dp" />
+        app:elevation="6dp" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
         android:layout_gravity="bottom"
-        android:background="@color/surface"
-        app:itemActiveIndicatorStyle="@null"
-        app:itemIconTint="@color/primary"
-        app:itemTextColor="@color/primary"
         app:menu="@menu/bottom_nav_menu"
         app:elevation="8dp" />
 

@@ -1,5 +1,6 @@
 package com.xpense.meter.ui.analytics
 
+import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -60,6 +61,18 @@ class AnalyticsFragment : Fragment() {
 
     private lateinit var categoryStatAdapter: CategoryStatAdapter
 
+    private val textColor: Int
+        get() {
+            val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            return if (nightMode == Configuration.UI_MODE_NIGHT_YES) Color.WHITE else Color.DKGRAY
+        }
+
+    private val gridColor: Int
+        get() {
+            val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            return if (nightMode == Configuration.UI_MODE_NIGHT_YES) Color.parseColor("#444444") else Color.parseColor("#E0E0E0")
+        }
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -89,10 +102,13 @@ class AnalyticsFragment : Fragment() {
             isDrawHoleEnabled = true
             holeRadius = 45f
             transparentCircleRadius = 50f
-            setHoleColor(Color.WHITE)
+            val nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+            val holeColor = if (nightMode == Configuration.UI_MODE_NIGHT_YES) Color.parseColor("#1C1B1F") else Color.WHITE
+            setHoleColor(holeColor)
             setDrawEntryLabels(false)
             legend.isEnabled = true
             legend.textSize = 11f
+            legend.textColor = textColor
         }
 
         // Bar chart setup
@@ -103,10 +119,13 @@ class AnalyticsFragment : Fragment() {
             setFitBars(true)
             legend.isEnabled = true
             legend.textSize = 11f
+            legend.textColor = textColor
             xAxis.position = XAxis.XAxisPosition.BOTTOM
             xAxis.setDrawGridLines(false)
+            xAxis.textColor = textColor
             axisLeft.setDrawGridLines(true)
-            axisLeft.gridColor = Color.parseColor("#E0E0E0")
+            axisLeft.gridColor = gridColor
+            axisLeft.textColor = textColor
             axisRight.isEnabled = false
         }
 
@@ -116,11 +135,14 @@ class AnalyticsFragment : Fragment() {
             setDrawGridBackground(false)
             legend.isEnabled = true
             legend.textSize = 11f
+            legend.textColor = textColor
             xAxis.position = XAxis.XAxisPosition.BOTTOM
             xAxis.setDrawGridLines(false)
             xAxis.granularity = 1f
+            xAxis.textColor = textColor
             axisLeft.setDrawGridLines(true)
-            axisLeft.gridColor = Color.parseColor("#E0E0E0")
+            axisLeft.gridColor = gridColor
+            axisLeft.textColor = textColor
             axisRight.isEnabled = false
         }
     }

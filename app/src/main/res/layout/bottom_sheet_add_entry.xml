@@ -6,7 +6,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="@color/surface">
+    android:background="?attr/colorSurface">
 
     <!-- Drag Handle -->
     <View

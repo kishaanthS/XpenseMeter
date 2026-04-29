@@ -31,4 +31,7 @@
     <string name="all_time">All Time</string>
     <string name="confirm_delete">Delete this transaction?</string>
     <string name="confirm_delete_message">This action cannot be undone.</string>
+    <string name="toggle_theme">Toggle theme</string>
+    <string name="dark_mode">Dark mode</string>
+    <string name="light_mode">Light mode</string>
 </resources>
