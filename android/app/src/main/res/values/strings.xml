@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Xpense</string>
+    <string name="title_activity_main">Xpense</string>
+    <string name="package_name">com.xpense.app</string>
+    <string name="custom_url_scheme">com.xpense.app</string>
+</resources>

@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Transaction, Category } from '../types';
 
-const STORAGE_KEY = 'xpensemeter_transactions';
+const STORAGE_KEY = 'xpense_transactions';
 
 export function useXpense() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);

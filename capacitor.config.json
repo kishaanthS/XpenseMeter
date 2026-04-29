@@ -1,0 +1,6 @@
+{
+  "appId": "com.xpense.app",
+  "appName": "Xpense",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
