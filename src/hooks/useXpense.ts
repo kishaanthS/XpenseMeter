@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Transaction, Category } from '../types';
 
 const STORAGE_KEY = 'xpensemeter_transactions';
@@ -38,8 +39,8 @@ export function useXpense() {
   };
 
   const clearAll = () => {
-    setTransactions([]);
     localStorage.removeItem(STORAGE_KEY);
+    setTransactions([]);
   };
 
   const deleteTransaction = (id: string) => {
@@ -50,35 +51,66 @@ export function useXpense() {
     setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...data } : t));
   };
 
-  const getStats = () => {
-    const expenses = transactions
-      .filter(t => t.type === Category.EXPENSE)
-      .reduce((sum, t) => sum + t.amount, 0);
+  const getPeriodStats = (startDate: Date, endDate: Date) => {
+    const start = startDate.getTime();
+    const end = endDate.getTime();
     
-    const income = transactions
-      .filter(t => t.type === Category.INCOME)
-      .reduce((sum, t) => sum + t.amount, 0);
+    const items = transactions.filter(t => t.timestamp >= start && t.timestamp <= end);
+    const expenses = items.filter(t => t.type === Category.EXPENSE).reduce((sum, t) => sum + t.amount, 0);
+    const income = items.filter(t => t.type === Category.INCOME).reduce((sum, t) => sum + t.amount, 0);
 
-    // Group by day for the last 7 days
-    const dailyData = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const dateStr = d.toLocaleDateString('en-US', { weekday: 'short' });
-      const dayStart = new Date(d.setHours(0, 0, 0, 0)).getTime();
-      const dayEnd = new Date(d.setHours(23, 59, 59, 999)).getTime();
+    const dailyData = [];
+    const curr = new Date(startDate);
+    
+    // Check if it's a YEAR period
+    const isYear = (endDate.getTime() - startDate.getTime()) > 32 * 24 * 60 * 60 * 1000;
+    const isDay = (endDate.getTime() - startDate.getTime()) < 25 * 60 * 60 * 1000;
 
-      const dayExpenses = transactions
-        .filter(t => t.type === Category.EXPENSE && t.timestamp >= dayStart && t.timestamp <= dayEnd)
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      const dayIncome = transactions
-        .filter(t => t.type === Category.INCOME && t.timestamp >= dayStart && t.timestamp <= dayEnd)
-        .reduce((sum, t) => sum + t.amount, 0);
+    if (isYear) {
+      // Aggregate by month
+      for (let m = 0; m < 12; m++) {
+        const monthStart = new Date(startDate.getFullYear(), m, 1).getTime();
+        const monthEnd = new Date(startDate.getFullYear(), m + 1, 0, 23, 59, 59, 999).getTime();
+        const monthTx = items.filter(t => t.timestamp >= monthStart && t.timestamp <= monthEnd);
+        dailyData.push({
+          name: format(new Date(startDate.getFullYear(), m, 1), 'MMM'),
+          expenses: monthTx.filter(t => t.type === Category.EXPENSE).reduce((sum, t) => sum + t.amount, 0),
+          income: monthTx.filter(t => t.type === Category.INCOME).reduce((sum, t) => sum + t.amount, 0)
+        });
+      }
+    } else if (isDay) {
+      // Aggregate by 4-hour chunks or just show categories? 
+      // Let's show 6 blocks of 4 hours
+      for (let h = 0; h < 24; h += 4) {
+        const hStart = new Date(startDate).setHours(h, 0, 0, 0);
+        const hEnd = new Date(startDate).setHours(h + 3, 59, 59, 999);
+        const hTx = items.filter(t => t.timestamp >= hStart && t.timestamp <= hEnd);
+        dailyData.push({
+          name: `${h}:00`,
+          expenses: hTx.filter(t => t.type === Category.EXPENSE).reduce((sum, t) => sum + t.amount, 0),
+          income: hTx.filter(t => t.type === Category.INCOME).reduce((sum, t) => sum + t.amount, 0)
+        });
+      }
+    } else {
+      // Default: daily (for WEEK and MONTH)
+      while (curr <= endDate) {
+        const dStart = new Date(curr).setHours(0, 0, 0, 0);
+        const dEnd = new Date(curr).setHours(23, 59, 59, 999);
+        
+        const dayTx = items.filter(t => t.timestamp >= dStart && t.timestamp <= dEnd);
+        const dExp = dayTx.filter(t => t.type === Category.EXPENSE).reduce((sum, t) => sum + t.amount, 0);
+        const dInc = dayTx.filter(t => t.type === Category.INCOME).reduce((sum, t) => sum + t.amount, 0);
+        
+        dailyData.push({ 
+          name: format(curr, 'dd MMM'), 
+          expenses: dExp, 
+          income: dInc 
+        });
+        curr.setDate(curr.getDate() + 1);
+      }
+    }
 
-      return { name: dateStr, expenses: dayExpenses, income: dayIncome };
-    });
-
-    const categoryStats = transactions
+    const categoryStats = items
       .filter(t => t.type === Category.EXPENSE)
       .reduce((acc, t) => {
         acc[t.categoryName] = (acc[t.categoryName] || 0) + t.amount;
@@ -89,7 +121,7 @@ export function useXpense() {
       expenses,
       income,
       balance: income - expenses,
-      totalTx: transactions.length,
+      items,
       dailyData,
       categoryStats: Object.entries(categoryStats).map(([name, value]) => ({ name, value }))
     };
@@ -99,7 +131,7 @@ export function useXpense() {
     transactions,
     addTransaction,
     updateTransaction,
-    getStats,
+    getPeriodStats,
     clearAll,
     deleteTransaction,
   };

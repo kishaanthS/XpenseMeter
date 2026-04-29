@@ -5,23 +5,18 @@ import {
   LayoutDashboard, 
   Settings, 
   Zap,
-  Trash,
   TrendingUp,
-  Plus,
   X,
-  CreditCard,
   Notebook,
-  Building2,
   Wallet,
   Search,
   Download,
-  Upload,
   Calendar,
   ChevronRight,
   TrendingDown,
   PieChart as PieChartIcon
 } from 'lucide-react';
-import { format, isSameDay } from 'date-fns';
+import { format, isSameDay, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, addDays, addWeeks, addMonths, addYears, subDays, subWeeks, subMonths, subYears } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   BarChart, 
@@ -39,21 +34,28 @@ import { useXpense } from './hooks/useXpense';
 import { Category, Transaction } from './types';
 import { cn } from './lib/utils';
 
+type PeriodType = 'DAY' | 'WEEK' | 'MONTH' | 'YEAR';
+
 export default function App() {
   const { 
     transactions, 
     addTransaction, 
     updateTransaction,
-    getStats, 
+    getPeriodStats,
     clearAll, 
     deleteTransaction,
   } = useXpense();
 
   const [activeTab, setActiveTab] = useState('Home');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [modalType, setModalType] = useState<Category>(Category.EXPENSE);
   
+  // Period State
+  const [periodType, setPeriodType] = useState<PeriodType>('MONTH');
+  const [refDate, setRefDate] = useState(new Date());
+
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -63,18 +65,51 @@ export default function App() {
   const [bank, setBank] = useState('');
   const [notes, setNotes] = useState('');
 
-  const stats = getStats();
+  const periodRange = useMemo(() => {
+    switch (periodType) {
+      case 'DAY': return { start: startOfDay(refDate), end: endOfDay(refDate) };
+      case 'WEEK': return { start: startOfWeek(refDate, { weekStartsOn: 1 }), end: endOfWeek(refDate, { weekStartsOn: 1 }) };
+      case 'MONTH': return { start: startOfMonth(refDate), end: endOfMonth(refDate) };
+      case 'YEAR': return { start: startOfYear(refDate), end: endOfYear(refDate) };
+    }
+  }, [periodType, refDate]);
+
+  const pStats = useMemo(() => {
+    return getPeriodStats(periodRange.start, periodRange.end);
+  }, [periodRange, transactions]);
 
   const filteredTransactions = useMemo(() => {
-    if (!searchQuery) return transactions;
+    const items = pStats.items;
+    if (!searchQuery) return items;
     const q = searchQuery.toLowerCase();
-    return transactions.filter(t => 
+    return items.filter(t => 
       t.categoryName.toLowerCase().includes(q) || 
       t.bank.toLowerCase().includes(q) || 
       t.notes.toLowerCase().includes(q) ||
       t.amount.toString().includes(q)
     );
-  }, [transactions, searchQuery]);
+  }, [pStats.items, searchQuery]);
+
+  const navigatePeriod = (direction: 'PREV' | 'NEXT') => {
+    setRefDate(prev => {
+      if (direction === 'PREV') {
+        switch (periodType) {
+          case 'DAY': return subDays(prev, 1);
+          case 'WEEK': return subWeeks(prev, 1);
+          case 'MONTH': return subMonths(prev, 1);
+          case 'YEAR': return subYears(prev, 1);
+        }
+      } else {
+        switch (periodType) {
+          case 'DAY': return addDays(prev, 1);
+          case 'WEEK': return addWeeks(prev, 1);
+          case 'MONTH': return addMonths(prev, 1);
+          case 'YEAR': return addYears(prev, 1);
+        }
+      }
+      return prev;
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,10 +168,15 @@ export default function App() {
   const COLORS = ['#3B82F6', '#10B981', '#F43F5E', '#F59E0B', '#8B5CF6', '#EC4899'];
 
   const exportData = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredTransactions));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", "xpensemeter_backup.json");
+    const dateLabel = periodType === 'DAY' ? format(refDate, 'MMM_dd_yyyy') : 
+                     periodType === 'WEEK' ? `${format(periodRange.start, 'MMM_dd')}_to_${format(periodRange.end, 'MMM_dd')}` :
+                     periodType === 'MONTH' ? format(refDate, 'MMMM_yyyy') : 
+                     format(refDate, 'yyyy');
+    
+    downloadAnchorNode.setAttribute("download", `Xpense_${dateLabel}.json`);
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
@@ -156,7 +196,7 @@ export default function App() {
               </div>
               XPENSE
             </h1>
-            <p className="text-[8px] text-zinc-600 font-bold tracking-[0.2em] mt-1">Manual Ledger v3.1</p>
+            <p className="text-[8px] text-zinc-600 font-bold tracking-[0.2em] mt-1">Manual Ledger v3.2</p>
           </div>
           <div className="flex items-center gap-4">
              <button onClick={exportData} className="text-zinc-600 hover:text-blue-400 transition-colors">
@@ -180,31 +220,66 @@ export default function App() {
                 exit={{ opacity: 0, x: 10 }}
                 className="px-6 py-6 space-y-8"
               >
-                {/* Summary Section */}
+                {/* Period Selector */}
+                <div className="flex gap-2 p-1 bg-white/5 rounded-2xl">
+                   {(['DAY', 'WEEK', 'MONTH', 'YEAR'] as PeriodType[]).map(type => (
+                     <button 
+                       key={type}
+                       onClick={() => {
+                         setPeriodType(type);
+                         setRefDate(new Date());
+                       }}
+                       className={cn(
+                         "flex-1 py-2 text-[9px] font-black tracking-widest rounded-xl transition-all",
+                         periodType === type ? "bg-blue-600 text-white shadow-lg" : "text-zinc-600 hover:text-zinc-400"
+                       )}
+                     >
+                       {type}
+                     </button>
+                   ))}
+                </div>
+
+                {/* Summary Section - Dynamic tracker */}
                 <section className="space-y-4">
                    <div className="bg-white/5 border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden group">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full -mr-10 -mt-10 blur-3xl " />
-                      <span className="text-zinc-600 text-[10px] font-black tracking-widest">Total Liquidity</span>
-                      <div className="text-5xl font-black mt-2 flex items-baseline gap-1 text-white italic">
-                        <span className="text-lg">₹</span>
-                        {stats.balance.toLocaleString('en-IN')}
+                      
+                      <div className="flex justify-between items-center mb-6">
+                        <span className="text-zinc-600 text-[10px] font-black tracking-widest uppercase">Summary</span>
+                        <div className="flex items-center gap-4">
+                           <button 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               navigatePeriod('PREV');
+                             }} 
+                             className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer z-10"
+                           >
+                              <ChevronRight size={16} className="rotate-180" />
+                           </button>
+                           <div className="bg-blue-600/20 px-3 py-1.5 rounded-xl border border-blue-600/20">
+                              <span className="text-[9px] text-blue-400 font-black tracking-tight whitespace-nowrap uppercase">
+                                {periodType === 'DAY' ? format(refDate, 'MMM dd, yyyy') : 
+                                 periodType === 'WEEK' ? `${format(periodRange.start, 'MMM dd')} - ${format(periodRange.end, 'MMM dd')}` :
+                                 periodType === 'MONTH' ? format(refDate, 'MMMM yyyy') : 
+                                 format(refDate, 'yyyy')}
+                              </span>
+                           </div>
+                           <button 
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               navigatePeriod('NEXT');
+                             }} 
+                             className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-95 transition-all cursor-pointer z-10"
+                           >
+                              <ChevronRight size={16} />
+                           </button>
+                        </div>
                       </div>
-                      <div className="mt-4 flex items-center gap-2 text-[10px] text-emerald-500 font-bold">
-                        <TrendingUp size={10} />
-                        <span>HEALTHY CASHFLOW</span>
-                      </div>
-                   </div>
 
-                   <div className="grid grid-cols-2 gap-4">
-                      <div className="bg-[#16161A] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden">
-                         <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500/5 rounded-full -mr-4 -mt-4 blur-xl" />
-                         <span className="text-[8px] text-zinc-600 font-black tracking-[0.2em] block mb-2">INFLOW</span>
-                         <p className="text-xl font-black text-emerald-400 tracking-tight">₹{stats.income.toLocaleString()}</p>
-                      </div>
-                      <div className="bg-[#16161A] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden">
-                         <div className="absolute top-0 right-0 w-12 h-12 bg-rose-500/5 rounded-full -mr-4 -mt-4 blur-xl" />
-                         <span className="text-[8px] text-zinc-600 font-black tracking-[0.2em] block mb-2">OUTFLOW</span>
-                         <p className="text-xl font-black text-rose-400 tracking-tight">₹{stats.expenses.toLocaleString()}</p>
+                      <div className="text-4xl font-black flex items-baseline gap-2 text-white italic">
+                        <span className="text-rose-400">₹{pStats.expenses.toLocaleString()}</span>
+                        <span className="text-zinc-700 text-xs">/</span>
+                        <span className="text-emerald-400 text-xl">₹{pStats.income.toLocaleString()}</span>
                       </div>
                    </div>
                 </section>
@@ -216,14 +291,14 @@ export default function App() {
                      className="bg-zinc-100 text-black py-5 rounded-[2rem] font-black text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-white transition-all active:scale-95 shadow-lg shadow-white/5"
                    >
                      <Zap size={14} strokeWidth={3} />
-                     LOG SPEND
+                     SPENT
                    </button>
                    <button 
                      onClick={() => openModal(Category.INCOME)}
                      className="bg-blue-600 text-white py-5 rounded-[2rem] font-black text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-600/10"
                    >
                      <TrendingUp size={14} strokeWidth={3} />
-                     LOG INCOME
+                     INCOME
                    </button>
                 </section>
 
@@ -301,19 +376,19 @@ export default function App() {
               >
                 <section className="space-y-6">
                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-zinc-600 tracking-widest">7-DAY CASHFLOW</span>
+                      <span className="text-[10px] font-black text-zinc-600 tracking-widest uppercase">{periodType}ly Breakdown</span>
                       <h2 className="text-2xl font-black italic tracking-tighter">ANALYTICS</h2>
                    </div>
 
                    <div className="h-[200px] w-full bg-[#16161A] p-4 rounded-[2.5rem] border border-white/5">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={stats.dailyData}>
+                        <BarChart data={pStats.dailyData}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1f1f23" />
                           <XAxis 
                             dataKey="name" 
                             axisLine={false} 
                             tickLine={false} 
-                            tick={{ fontSize: 9, fontWeight: 700, fill: '#52525b' }} 
+                            tick={{ fontSize: 7, fontWeight: 700, fill: '#52525b' }} 
                           />
                           <Tooltip 
                             contentStyle={{ backgroundColor: '#16161A', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', fontWeight: 'bold' }}
@@ -337,7 +412,7 @@ export default function App() {
                         <ResponsiveContainer width="100%" height="100%">
                            <PieChart>
                              <Pie
-                               data={stats.categoryStats}
+                               data={pStats.categoryStats}
                                cx="50%"
                                cy="50%"
                                innerRadius={40}
@@ -345,7 +420,7 @@ export default function App() {
                                paddingAngle={5}
                                dataKey="value"
                              >
-                               {stats.categoryStats.map((entry, index) => (
+                               {pStats.categoryStats.map((entry, index) => (
                                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                ))}
                              </Pie>
@@ -355,7 +430,7 @@ export default function App() {
                       </div>
 
                       <div className="space-y-2 mt-4">
-                        {stats.categoryStats.map((item, idx) => (
+                        {pStats.categoryStats.map((item, idx) => (
                           <div key={item.name} className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
@@ -394,11 +469,7 @@ export default function App() {
                       icon={<Trash2 size={18} className="text-rose-500" />} 
                       title="PURGE DATABASE" 
                       desc="Irreversibly wipe all transaction history."
-                      onClick={() => {
-                        if (confirm('Are you absolutely sure you want to delete ALL data?')) {
-                          clearAll();
-                        }
-                      }}
+                      onClick={() => setShowPurgeConfirm(true)}
                       danger
                    />
                 </div>
@@ -415,8 +486,8 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Improved Navigation Grid */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[85%] h-18 bg-[#16161A]/90 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] flex justify-around items-center px-4 z-30 shadow-2xl">
+        {/* Simplified Navigation */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[70%] h-18 bg-[#16161A]/90 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] flex justify-around items-center px-4 z-30 shadow-2xl">
            <NavItem 
              icon={<LayoutDashboard size={20} />} 
              label="HOME" 
@@ -429,13 +500,6 @@ export default function App() {
              label="STATS" 
              active={activeTab === 'Stats'} 
              onClick={() => setActiveTab('Stats')}
-           />
-           <div className="bg-white/5 w-px h-6 mx-2" />
-           <NavItem 
-             icon={<Notebook size={20} />} 
-             label="LOGS" 
-             active={activeTab === 'Logs'} 
-             onClick={() => setActiveTab('Home')} // Reuse home for logs for now or implement dedicated log view
            />
         </div>
 
@@ -473,7 +537,7 @@ export default function App() {
                                placeholder="0.00"
                                value={amount}
                                onChange={(e) => setAmount(e.target.value)}
-                               className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-4xl font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-zinc-800"
+                               className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-4xl font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-zinc-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                              />
                              <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
                                 <div className={cn(
@@ -543,6 +607,45 @@ export default function App() {
                         </button>
                     </div>
                   </form>
+               </motion.div>
+            </div>
+          )}
+
+          {showPurgeConfirm && (
+            <div className="absolute inset-0 z-[70] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+               <motion.div 
+                 initial={{ scale: 0.9, opacity: 0 }}
+                 animate={{ scale: 1, opacity: 1 }}
+                 exit={{ scale: 0.9, opacity: 0 }}
+                 className="bg-[#121216] w-full p-8 rounded-[3rem] border border-white/10 space-y-6 text-center"
+               >
+                  <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-2">
+                    <Trash2 size={32} />
+                  </div>
+                  <div className="space-y-2">
+                    <h2 className="text-xl font-black italic tracking-tighter uppercase">Purge Database?</h2>
+                    <p className="text-[10px] text-zinc-600 font-bold tracking-widest leading-relaxed uppercase">
+                      This will irreversibly delete all your logs. This action cannot be undone.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 pt-4">
+                    <button 
+                      onClick={() => {
+                        clearAll();
+                        setShowPurgeConfirm(false);
+                        setActiveTab('Home');
+                      }}
+                      className="w-full py-4 bg-rose-500 text-white rounded-2xl font-black text-[10px] tracking-widest hover:bg-rose-600 transition-all"
+                    >
+                      DELETE EVERYTHING
+                    </button>
+                    <button 
+                      onClick={() => setShowPurgeConfirm(false)}
+                      className="w-full py-4 bg-white/5 text-zinc-400 rounded-2xl font-black text-[10px] tracking-widest hover:bg-white/10 transition-all"
+                    >
+                      NEVERMIND
+                    </button>
+                  </div>
                </motion.div>
             </div>
           )}

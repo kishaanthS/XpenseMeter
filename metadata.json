@@ -1,6 +1,6 @@
 {
-  "name": "XpenseMeter",
-  "description": "A mobile-first financial tracker that uses a heuristic engine to parse bank SMS messages. Includes a simulation portal for testing your bank's message formats and AI-powered transaction refinement.",
+  "name": "Xpense",
+  "description": "A high-performance personal finance tracker with daily, weekly, monthly, and yearly breakdowns. Features a clean, bento-grid inspired UI with real-time analytics and transaction management.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }
