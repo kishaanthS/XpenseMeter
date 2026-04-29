@@ -12,17 +12,13 @@ export enum Category {
 }
 
 export interface Transaction {
-  id: string; // Internal unique ID (can be hash or UUID)
+  id: string; 
   amount: number;
   type: Category;
-  merchant: string | null;
-  categoryName?: string; // e.g. Food, Shopping, Travel
-  account: string | null;
-  txnId: string | null;
+  categoryName: string; 
+  bank: string;
+  notes: string;
   timestamp: number;
-  rawMessage: string;
-  confidence: number;
-  isAiProcessed?: boolean;
 }
 
 export interface SMSMessage {

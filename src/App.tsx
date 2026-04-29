@@ -1,155 +1,176 @@
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart3, 
-  RefreshCw, 
   Trash2, 
   LayoutDashboard, 
-  Code, 
   Settings, 
-  ChevronRight,
   Zap,
   Trash,
   TrendingUp,
-  Terminal,
-  ShieldCheck,
-  Eraser,
-  AlertCircle,
   Plus,
-  X
+  X,
+  CreditCard,
+  Notebook,
+  Building2,
+  Wallet,
+  Search,
+  Download,
+  Upload,
+  Calendar,
+  ChevronRight,
+  TrendingDown,
+  PieChart as PieChartIcon
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, isSameDay } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie
+} from 'recharts';
 import { useXpense } from './hooks/useXpense';
-import { Category, SMSMessage, Transaction } from './types';
+import { Category, Transaction } from './types';
 import { cn } from './lib/utils';
 
 export default function App() {
   const { 
     transactions, 
-    addTransactions, 
+    addTransaction, 
+    updateTransaction,
     getStats, 
-    isSyncing, 
     clearAll, 
     deleteTransaction,
-    refineWithAi,
-    categoryMappings,
-    updateMappings
   } = useXpense();
 
   const [activeTab, setActiveTab] = useState('Home');
-  const [filter, setFilter] = useState<Category | 'ALL'>('ALL');
-  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
-  const [showSyncModal, setShowSyncModal] = useState(false);
-  const [rawSmsInput, setRawSmsInput] = useState('');
-  const [syncSinceDate, setSyncSinceDate] = useState(format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'));
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [modalType, setModalType] = useState<Category>(Category.EXPENSE);
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const [newKeyword, setNewKeyword] = useState('');
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Food');
+  // Form State
+  const [amount, setAmount] = useState('');
+  const [categoryName, setCategoryName] = useState('');
+  const [bank, setBank] = useState('');
+  const [notes, setNotes] = useState('');
 
   const stats = getStats();
 
-  const handleAddKeyword = () => {
-    if (!newKeyword.trim()) return;
-    
-    let targetCat = selectedCategory;
-    let updatedMappings = { ...categoryMappings };
-
-    if (selectedCategory === 'NEW') {
-      if (!newCategoryName.trim()) return;
-      targetCat = newCategoryName.trim();
-      updatedMappings[targetCat] = [];
-      setNewCategoryName('');
-      setSelectedCategory(targetCat);
-    }
-
-    const currentKeywords = updatedMappings[targetCat] || [];
-    if (!currentKeywords.includes(newKeyword.trim().toLowerCase())) {
-        updatedMappings[targetCat] = [...currentKeywords, newKeyword.trim().toLowerCase()];
-        updateMappings(updatedMappings);
-    }
-    setNewKeyword('');
-  };
-
-  const handleRemoveKeyword = (cat: string, kw: string) => {
-    const updated = {
-        ...categoryMappings,
-        [cat]: categoryMappings[cat].filter(k => k !== kw)
-    };
-    updateMappings(updated);
-  };
-
-  const handleRemoveCategory = (cat: string) => {
-    const { [cat]: _, ...updated } = categoryMappings;
-    updateMappings(updated);
-    if (selectedCategory === cat) {
-        setSelectedCategory(Object.keys(updated)[0] || 'Food');
-    }
-  };
-
   const filteredTransactions = useMemo(() => {
-    return filter === 'ALL' 
-      ? transactions 
-      : transactions.filter(t => t.type === filter);
-  }, [transactions, filter]);
+    if (!searchQuery) return transactions;
+    const q = searchQuery.toLowerCase();
+    return transactions.filter(t => 
+      t.categoryName.toLowerCase().includes(q) || 
+      t.bank.toLowerCase().includes(q) || 
+      t.notes.toLowerCase().includes(q) ||
+      t.amount.toString().includes(q)
+    );
+  }, [transactions, searchQuery]);
 
-  const handleSyncSubmit = () => {
-    if (!rawSmsInput.trim()) return;
-    
-    const sinceTimestamp = new Date(syncSinceDate).getTime();
-    
-    // Simulate deep scan progress
-    setTimeout(() => {
-      const messages: SMSMessage[] = rawSmsInput
-        .split('\n')
-        .filter(line => line.trim().length > 5)
-        .map((body, index) => ({
-          id: `m_${Date.now()}_${index}`,
-          sender: 'SIM_BANK',
-          body: body.trim(),
-          timestamp: Date.now() - (index * 1000 * 60 * 60 * 4)
-        }));
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!amount || !categoryName) return;
 
-      addTransactions(messages, sinceTimestamp);
-      setRawSmsInput('');
-      setShowSyncModal(false);
-    }, 1500);
+    if (editingTransaction) {
+      updateTransaction(editingTransaction.id, {
+        amount: parseFloat(amount),
+        type: modalType,
+        categoryName: categoryName.trim(),
+        bank: bank.trim() || 'Cash',
+        notes: notes.trim()
+      });
+    } else {
+      addTransaction({
+        amount: parseFloat(amount),
+        type: modalType,
+        categoryName: categoryName.trim(),
+        bank: bank.trim() || 'Cash',
+        notes: notes.trim()
+      });
+    }
+
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setAmount('');
+    setCategoryName('');
+    setBank('');
+    setNotes('');
+    setEditingTransaction(null);
+    setShowAddModal(false);
+  };
+
+  const openModal = (type: Category) => {
+    setModalType(type);
+    if (type === Category.INCOME) {
+      setCategoryName('Income');
+    } else {
+      setCategoryName('');
+    }
+    setShowAddModal(true);
+  };
+
+  const startEdit = (tx: Transaction) => {
+    setEditingTransaction(tx);
+    setModalType(tx.type);
+    setAmount(tx.amount.toString());
+    setCategoryName(tx.categoryName);
+    setBank(tx.bank);
+    setNotes(tx.notes);
+    setShowAddModal(true);
+  };
+
+  const COLORS = ['#3B82F6', '#10B981', '#F43F5E', '#F59E0B', '#8B5CF6', '#EC4899'];
+
+  const exportData = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(transactions));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "xpensemeter_backup.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#0A0A0C] text-[#E1E1E6] overflow-hidden justify-center items-center font-sans">
-      {/* Mobile Frame (Centering the app for desktop users, full width for mobile) */}
-      <div className="w-full max-w-md h-full md:h-[844px] md:max-h-[90vh] bg-[#0E0E12] md:rounded-[3rem] md:border-[8px] border-zinc-900 overflow-hidden relative flex flex-col shadow-2xl">
+    <div className="flex min-h-[100dvh] w-full bg-[#0A0A0C] text-[#E1E1E6] overflow-hidden justify-center items-center font-sans uppercase">
+      {/* Mobile Frame */}
+      <div className="w-full max-w-md h-[100dvh] md:h-[844px] md:max-h-[90vh] bg-[#0E0E12] md:rounded-[3.5rem] md:border-[12px] border-zinc-900 overflow-hidden relative flex flex-col shadow-2xl">
         
-        {/* StatusBar Mock */}
-        <div className="h-10 w-full flex justify-between items-center px-8 pt-4 pb-2 z-20">
-          <span className="text-xs font-semibold">9:41</span>
-          <div className="flex gap-1.5 items-center">
-            <div className="w-4 h-4 bg-white/10 rounded-full flex items-center justify-center">
-              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-            </div>
-            <div className="w-6 h-3 border border-white/20 rounded-sm" />
-          </div>
-        </div>
-
-        {/* Header */}
-        <header className="px-6 pt-4 pb-2 flex justify-between items-center z-10 bg-[#0E0E12]">
+        {/* Fixed Header */}
+        <header className="px-6 pt-10 pb-4 flex justify-between items-center z-20 bg-[#0E0E12]/80 backdrop-blur-lg sticky top-0 border-b border-white/5">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight italic text-white">XpenseMeter</h1>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Heuristic Engine v2.1</p>
+            <h1 className="text-xl font-black tracking-tighter italic text-white flex items-center gap-2">
+              <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center rotate-3">
+                <Wallet size={16} className="text-white -rotate-3" />
+              </div>
+              XPENSE
+            </h1>
+            <p className="text-[8px] text-zinc-600 font-bold tracking-[0.2em] mt-1">Manual Ledger v3.1</p>
           </div>
-          <button 
-            onClick={() => setShowSyncModal(true)}
-            className="p-3 bg-blue-600 rounded-full shadow-lg shadow-blue-600/20 active:scale-90 transition-transform"
-          >
-            <RefreshCw size={18} className={cn(isSyncing && "animate-spin")} />
-          </button>
+          <div className="flex items-center gap-4">
+             <button onClick={exportData} className="text-zinc-600 hover:text-blue-400 transition-colors">
+                <Download size={18} />
+             </button>
+             <button onClick={() => setActiveTab('Settings')} className="text-zinc-600 hover:text-zinc-400 transition-colors">
+                <Settings size={18} />
+             </button>
+          </div>
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-8 scroll-smooth pb-32">
+        <div className="flex-1 overflow-y-auto scroll-smooth custom-scrollbar pb-32">
           
-          {/* Dashboard View */}
           <AnimatePresence mode="wait">
             {activeTab === 'Home' && (
               <motion.div 
@@ -157,166 +178,195 @@ export default function App() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="space-y-6"
+                className="px-6 py-6 space-y-8"
               >
-                {/* Balance Slide */}
-                <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-[2rem] shadow-xl shadow-blue-900/20 relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl group-hover:scale-150 transition-transform duration-700" />
-                  <span className="text-blue-100/60 text-xs font-bold uppercase tracking-widest">Total Net Balance</span>
-                  <div className="text-4xl font-light mt-1 flex items-baseline gap-2">
-                    <span className="text-xl">₹</span>
-                    {stats.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </div>
-                  <div className="mt-6 flex justify-between items-center">
-                    <div className="flex -space-x-2">
-                       <div className="w-8 h-8 rounded-full border-2 border-blue-600 bg-white/10 flex items-center justify-center text-[10px] font-bold">H</div>
-                       <div className="w-8 h-8 rounded-full border-2 border-blue-600 bg-white/10 flex items-center justify-center text-[10px] font-bold">I</div>
-                       <div className="w-8 h-8 rounded-full border-2 border-blue-600 bg-white/10 flex items-center justify-center text-[10px] font-bold">+2</div>
-                    </div>
-                    <span className="text-[10px] bg-white/20 px-2 py-1 rounded-full text-white font-bold tracking-tighter">CONFIDENCE: 98.4%</span>
-                  </div>
-                </div>
-
-                {/* Summary Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <StatCardSmall label="Inflow" value={stats.income} type="income" icon={<TrendingUp size={14} />} />
-                  <StatCardSmall label="Outflow" value={stats.expenses} type="expense" icon={<Zap size={14} />} />
-                </div>
-
-                {/* Recent List */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-widest">Transaction Feed</h3>
-                    <div className="flex gap-3">
-                      {(['ALL', 'EXPENSE', 'INCOME'] as const).map(c => (
-                        <button key={c} onClick={() => setFilter(c)} className={cn("text-[10px] font-bold transition-colors", filter === c ? "text-blue-400 underline underline-offset-4" : "text-zinc-600")}>
-                          {c}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    {filteredTransactions.map((tx: Transaction) => (
-                      <TxItem key={tx.id} tx={tx} onClick={() => setSelectedTx(tx)} />
-                    ))}
-                    {filteredTransactions.length === 0 && (
-                      <div className="flex flex-col items-center py-10 opacity-20 italic text-xs">
-                        <Terminal size={24} className="mb-2" />
-                        Awaiting data stream...
+                {/* Summary Section */}
+                <section className="space-y-4">
+                   <div className="bg-white/5 border border-white/5 p-8 rounded-[2.5rem] relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full -mr-10 -mt-10 blur-3xl " />
+                      <span className="text-zinc-600 text-[10px] font-black tracking-widest">Total Liquidity</span>
+                      <div className="text-5xl font-black mt-2 flex items-baseline gap-1 text-white italic">
+                        <span className="text-lg">₹</span>
+                        {stats.balance.toLocaleString('en-IN')}
                       </div>
-                    )}
-                  </div>
-                </div>
+                      <div className="mt-4 flex items-center gap-2 text-[10px] text-emerald-500 font-bold">
+                        <TrendingUp size={10} />
+                        <span>HEALTHY CASHFLOW</span>
+                      </div>
+                   </div>
+
+                   <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-[#16161A] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden">
+                         <div className="absolute top-0 right-0 w-12 h-12 bg-emerald-500/5 rounded-full -mr-4 -mt-4 blur-xl" />
+                         <span className="text-[8px] text-zinc-600 font-black tracking-[0.2em] block mb-2">INFLOW</span>
+                         <p className="text-xl font-black text-emerald-400 tracking-tight">₹{stats.income.toLocaleString()}</p>
+                      </div>
+                      <div className="bg-[#16161A] p-6 rounded-[2rem] border border-white/5 relative overflow-hidden">
+                         <div className="absolute top-0 right-0 w-12 h-12 bg-rose-500/5 rounded-full -mr-4 -mt-4 blur-xl" />
+                         <span className="text-[8px] text-zinc-600 font-black tracking-[0.2em] block mb-2">OUTFLOW</span>
+                         <p className="text-xl font-black text-rose-400 tracking-tight">₹{stats.expenses.toLocaleString()}</p>
+                      </div>
+                   </div>
+                </section>
+
+                {/* Quick Actions */}
+                <section className="grid grid-cols-2 gap-4">
+                   <button 
+                     onClick={() => openModal(Category.EXPENSE)}
+                     className="bg-zinc-100 text-black py-5 rounded-[2rem] font-black text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-white transition-all active:scale-95 shadow-lg shadow-white/5"
+                   >
+                     <Zap size={14} strokeWidth={3} />
+                     LOG SPEND
+                   </button>
+                   <button 
+                     onClick={() => openModal(Category.INCOME)}
+                     className="bg-blue-600 text-white py-5 rounded-[2rem] font-black text-[10px] tracking-widest flex items-center justify-center gap-2 hover:bg-blue-500 transition-all active:scale-95 shadow-lg shadow-blue-600/10"
+                   >
+                     <TrendingUp size={14} strokeWidth={3} />
+                     LOG INCOME
+                   </button>
+                </section>
+
+                {/* Transactions List */}
+                <section className="space-y-6">
+                   <div className="flex justify-between items-center px-2">
+                      <h3 className="text-[10px] font-black text-zinc-600 tracking-widest flex items-center gap-2">
+                        <Calendar size={12} />
+                        RECENT LOGS
+                      </h3>
+                      <div className="bg-white/5 flex items-center px-3 py-1.5 rounded-full">
+                         <Search size={10} className="text-zinc-600" />
+                         <input 
+                            type="text" 
+                            placeholder="SEARCH" 
+                            className="bg-transparent border-none text-[8px] font-bold text-zinc-400 focus:outline-none w-16 ml-1 placeholder:text-zinc-700"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                         />
+                      </div>
+                   </div>
+
+                   <div className="space-y-3">
+                      {filteredTransactions.map((tx) => (
+                        <motion.div 
+                          layout
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          key={tx.id} 
+                          onClick={() => startEdit(tx)}
+                          className="bg-[#16161A] border border-white/5 p-5 rounded-[2rem] flex justify-between items-center group relative cursor-pointer hover:bg-white/[0.03] transition-colors"
+                        >
+                          <div className="flex gap-4 items-center">
+                            <div className={cn(
+                              "w-12 h-12 rounded-[1.25rem] flex items-center justify-center font-black text-[9px] border",
+                              tx.type === Category.EXPENSE ? "bg-rose-500/5 text-rose-500 border-rose-500/10" : "bg-emerald-500/5 text-emerald-500 border-emerald-500/10"
+                            )}>
+                              {tx.type === Category.EXPENSE ? <TrendingDown size={16} /> : <TrendingUp size={16} />}
+                            </div>
+                            <div className="flex flex-col">
+                              <div className="flex items-center gap-2">
+                                 <span className="text-xs font-black text-zinc-100 tracking-tight uppercase">{tx.categoryName}</span>
+                                 <span className="text-[8px] bg-white/5 px-2 py-0.5 rounded text-zinc-600 font-black">{tx.bank}</span>
+                              </div>
+                              <span className="text-[9px] text-zinc-700 font-bold mt-1 truncate max-w-[120px]">{tx.notes || '---'}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end">
+                             <span className={cn("text-xs font-black tracking-tight", tx.type === Category.EXPENSE ? "text-rose-400" : "text-emerald-400")}>
+                               {tx.type === Category.EXPENSE ? '-' : '+'}₹{tx.amount.toLocaleString()}
+                             </span>
+                             <span className="text-[8px] text-zinc-800 font-bold mt-1">{format(tx.timestamp, 'MMM dd, HH:mm')}</span>
+                          </div>
+                        </motion.div>
+                      ))}
+
+                      {filteredTransactions.length === 0 && (
+                        <div className="py-20 text-center space-y-4 opacity-10">
+                           <Notebook size={40} className="mx-auto" />
+                           <p className="text-[10px] font-black tracking-[0.2em]">NO ENTRIES IN LEDGER</p>
+                        </div>
+                      )}
+                   </div>
+                </section>
               </motion.div>
             )}
 
-            {activeTab === 'Analytics' && (
+            {activeTab === 'Stats' && (
               <motion.div 
-                key="analytics"
+                key="stats"
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="space-y-6 flex flex-col items-center py-10 text-center"
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="px-6 py-6 space-y-8"
               >
-                <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center text-blue-500 mb-4 border border-blue-600/20">
-                  <BarChart3 size={32} />
-                </div>
-                <h3 className="text-xl font-light text-white">Analytics Node</h3>
-                <p className="text-zinc-500 text-sm px-10">Advanced spending insights and category behavior analysis will appear here once local DB has sufficient history.</p>
-              </motion.div>
-            )}
-            {activeTab === 'Rules' && (
-              <motion.div 
-                key="rules"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
-              >
-                <div className="flex justify-between items-center bg-blue-600/5 p-4 rounded-2xl border border-blue-600/20">
-                   <div className="flex items-center gap-3">
-                     <ShieldCheck className="text-blue-400" />
-                     <span className="text-sm font-bold text-blue-100 uppercase tracking-widest">Heuristic Rules</span>
+                <section className="space-y-6">
+                   <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-zinc-600 tracking-widest">7-DAY CASHFLOW</span>
+                      <h2 className="text-2xl font-black italic tracking-tighter">ANALYTICS</h2>
                    </div>
-                   <span className="text-[10px] bg-blue-600/20 px-2 py-1 rounded text-blue-400 font-bold">ACTIVE</span>
-                </div>
 
-                {/* Category Mapping Manager */}
-                <div className="bg-[#16161A] border border-white/5 rounded-[2.5rem] p-6 space-y-6">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-sm font-bold text-zinc-100 uppercase tracking-widest">Category Mappings</h3>
-                    <p className="text-[10px] text-zinc-600">Associations between keywords and buckets</p>
-                  </div>
+                   <div className="h-[200px] w-full bg-[#16161A] p-4 rounded-[2.5rem] border border-white/5">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.dailyData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1f1f23" />
+                          <XAxis 
+                            dataKey="name" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fontSize: 9, fontWeight: 700, fill: '#52525b' }} 
+                          />
+                          <Tooltip 
+                            contentStyle={{ backgroundColor: '#16161A', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', fontSize: '10px', fontWeight: 'bold' }}
+                            itemStyle={{ color: '#fff' }}
+                          />
+                          <Bar dataKey="expenses" fill="#f43f5e" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="income" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                   </div>
+                </section>
 
-                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {Object.entries(categoryMappings).map(([cat, keywords]) => (
-                      <div key={cat} className="space-y-2">
-                        <div className="flex justify-between items-center group/cat">
-                          <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">{cat}</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[8px] text-zinc-700 font-bold">{(keywords as string[]).length} KEYWORDS</span>
-                            <button onClick={() => handleRemoveCategory(cat)} className="text-zinc-800 hover:text-rose-500 opacity-0 group-hover/cat:opacity-100 transition-opacity">
-                              <Trash size={10} />
-                            </button>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {(keywords as string[]).map(kw => (
-                            <div key={kw} className="bg-white/5 border border-white/5 px-2 py-1 rounded-lg flex items-center gap-1.5 group">
-                              <span className="text-[10px] text-zinc-400">{kw}</span>
-                              <button onClick={() => handleRemoveKeyword(cat, kw)} className="text-zinc-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <X size={10} />
-                              </button>
+                <section className="grid grid-cols-1 gap-6">
+                   <div className="bg-[#16161A] p-8 rounded-[2.5rem] border border-white/5 space-y-6">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-black text-zinc-600 tracking-widest uppercase">Category Split</span>
+                        <PieChartIcon size={14} className="text-zinc-600" />
+                      </div>
+                      
+                      <div className="h-[180px] w-full flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                           <PieChart>
+                             <Pie
+                               data={stats.categoryStats}
+                               cx="50%"
+                               cy="50%"
+                               innerRadius={40}
+                               outerRadius={60}
+                               paddingAngle={5}
+                               dataKey="value"
+                             >
+                               {stats.categoryStats.map((entry, index) => (
+                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                               ))}
+                             </Pie>
+                             <Tooltip />
+                           </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+
+                      <div className="space-y-2 mt-4">
+                        {stats.categoryStats.map((item, idx) => (
+                          <div key={item.name} className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                               <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                               <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tight">{item.name}</span>
                             </div>
-                          ))}
-                        </div>
+                            <span className="text-[10px] font-black text-white">₹{item.value.toLocaleString()}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-
-                  <div className="pt-4 border-t border-white/5 space-y-3">
-                    {selectedCategory === 'NEW' && (
-                      <div className="flex flex-col gap-2">
-                        <label className="text-[10px] text-zinc-600 font-bold uppercase">Category Name</label>
-                        <input 
-                           type="text" 
-                           placeholder="e.g. Gym, Rent..."
-                           value={newCategoryName}
-                           onChange={(e) => setNewCategoryName(e.target.value)}
-                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
-                         />
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 gap-3">
-                       <select 
-                         value={selectedCategory}
-                         onChange={(e) => setSelectedCategory(e.target.value)}
-                         className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none"
-                       >
-                         {Object.keys(categoryMappings).map(c => <option key={c} value={c}>{c}</option>)}
-                         <option value="NEW">+ Create New</option>
-                       </select>
-                       <div className="relative">
-                         <input 
-                           type="text" 
-                           placeholder="Add keyword..."
-                           value={newKeyword}
-                           onChange={(e) => setNewKeyword(e.target.value)}
-                           onKeyDown={(e) => e.key === 'Enter' && handleAddKeyword()}
-                           className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-blue-600"
-                         />
-                         <button onClick={handleAddKeyword} className="absolute right-2 top-1.5 text-blue-500">
-                           <Plus size={16} />
-                         </button>
-                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <RuleItem title="Sent Patterns" desc="Matches keywords like 'Sent', 'Debited', 'Paid' followed by currency symbols." active />
-                  <RuleItem title="Income Patterns" desc="Detects 'Credited', 'Received', 'Salary' for inflow classification." active />
-                  <RuleItem title="Account Extraction" desc="Pulls account endings like 'A/c x1234' or 'ending in 4455'." active />
-                </div>
+                   </div>
+                </section>
               </motion.div>
             )}
 
@@ -325,211 +375,175 @@ export default function App() {
                 key="settings"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="space-y-6"
+                exit={{ opacity: 0, y: 10 }}
+                className="px-6 py-6 space-y-8"
               >
-                <div className="bg-zinc-900/50 rounded-[2rem] p-6 border border-white/5 space-y-6">
-                  <div className="flex justify-between items-center group cursor-pointer" onClick={() => clearAll()}>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-white">Wipe Local Database</span>
-                      <span className="text-xs text-zinc-600">Delete all processed transaction history</span>
-                    </div>
-                    <Eraser size={20} className="text-zinc-700 group-hover:text-rose-500 transition-colors" />
-                  </div>
-
-                  <div className="h-[1px] bg-white/5 w-full" />
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-white">Base Currency</span>
-                      <span className="text-xs text-zinc-600">Set default extraction currency (INR/USD)</span>
-                    </div>
-                    <span className="text-xs font-bold text-blue-500">INR</span>
-                  </div>
-
-                  <div className="h-[1px] bg-white/5 w-full" />
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-white">AI Refinement (Gemini)</span>
-                      <span className="text-xs text-zinc-600">Use AI for low-confidence messages</span>
-                    </div>
-                    <div className="w-10 h-5 bg-blue-600 rounded-full relative">
-                       <div className="w-4 h-4 bg-white rounded-full absolute top-0.5 right-0.5 shadow-sm" />
-                    </div>
-                  </div>
-
-                  <div className="h-[1px] bg-white/5 w-full" />
-
-                  <div className="flex justify-between items-center opacity-40">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-white">Daily Budget Goal</span>
-                      <span className="text-xs text-zinc-600">Get notified when daily limit is reached</span>
-                    </div>
-                    <span className="text-[10px] bg-zinc-800 px-2 py-1 rounded text-zinc-500 font-bold">PRO</span>
-                  </div>
-
-                  <div className="h-[1px] bg-white/5 w-full" />
-
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-white">SMS Notification Sync</span>
-                      <span className="text-xs text-zinc-600">Background scanning (Native only)</span>
-                    </div>
-                    <div className="w-10 h-5 bg-zinc-800 rounded-full relative">
-                       <div className="w-4 h-4 bg-zinc-600 rounded-full absolute top-0.5 left-0.5 shadow-sm" />
-                    </div>
-                  </div>
-
-                  <div className="h-[1px] bg-white/5 w-full" />
-
-                  <div className="flex justify-between items-center opacity-40">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold text-white">Biometric Lock</span>
-                      <span className="text-xs text-zinc-600">Require login on app open</span>
-                    </div>
-                    <div className="w-10 h-5 bg-zinc-800 rounded-full relative">
-                       <div className="w-4 h-4 bg-zinc-600 rounded-full absolute top-0.5 left-0.5 shadow-sm" />
-                    </div>
-                  </div>
+                <div className="space-y-1">
+                   <h2 className="text-xl font-black italic tracking-tighter">CONFIGURATION</h2>
+                   <p className="text-[10px] text-zinc-600 font-bold tracking-widest">SYSTEM PREFERENCES</p>
                 </div>
 
-                <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex gap-3">
-                   <AlertCircle size={18} className="text-amber-500 shrink-0" />
-                   <p className="text-[10px] text-zinc-500 italic">Advanced settings like Multi-SIM support and Cloud Sync are available in the native APK builds via GitHub Export.</p>
+                <div className="space-y-4">
+                   <SettingItem 
+                      icon={<Download size={18} />} 
+                      title="EXPORT BACKUP" 
+                      desc="Download ledger as JSON for portability."
+                      onClick={exportData}
+                   />
+                   <SettingItem 
+                      icon={<Trash2 size={18} className="text-rose-500" />} 
+                      title="PURGE DATABASE" 
+                      desc="Irreversibly wipe all transaction history."
+                      onClick={() => {
+                        if (confirm('Are you absolutely sure you want to delete ALL data?')) {
+                          clearAll();
+                        }
+                      }}
+                      danger
+                   />
+                </div>
+
+                <div className="pt-8 border-t border-white/5 opacity-30 text-center">
+                   <p className="text-[8px] font-black tracking-widest leading-loose">
+                     DEVICE STORAGE ONLY<br/>
+                     NO EXTERNAL SYNC ACTIVE<br/>
+                     ENCRYPTED AT REST (LOCALSTORAGE)
+                   </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Bottom Nav */}
-        <nav className="absolute bottom-0 w-full bg-[#0E0E12] border-t border-white/5 px-8 pt-4 pb-10 flex justify-between items-center z-20">
-          <NavItem icon={<LayoutDashboard size={20} />} label="Home" active={activeTab === 'Home'} onClick={() => setActiveTab('Home')} />
-          <NavItem icon={<BarChart3 size={20} />} label="Stats" active={activeTab === 'Analytics'} onClick={() => setActiveTab('Analytics')} />
-          <NavItem icon={<Code size={20} />} label="Rules" active={activeTab === 'Rules'} onClick={() => setActiveTab('Rules')} />
-          <NavItem icon={<Settings size={20} />} label="Prefs" active={activeTab === 'Settings'} onClick={() => setActiveTab('Settings')} />
-        </nav>
+        {/* Improved Navigation Grid */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-[85%] h-18 bg-[#16161A]/90 backdrop-blur-2xl border border-white/5 rounded-[2.5rem] flex justify-around items-center px-4 z-30 shadow-2xl">
+           <NavItem 
+             icon={<LayoutDashboard size={20} />} 
+             label="HOME" 
+             active={activeTab === 'Home'} 
+             onClick={() => setActiveTab('Home')}
+           />
+           <div className="bg-white/5 w-px h-6 mx-2" />
+           <NavItem 
+             icon={<BarChart3 size={20} />} 
+             label="STATS" 
+             active={activeTab === 'Stats'} 
+             onClick={() => setActiveTab('Stats')}
+           />
+           <div className="bg-white/5 w-px h-6 mx-2" />
+           <NavItem 
+             icon={<Notebook size={20} />} 
+             label="LOGS" 
+             active={activeTab === 'Logs'} 
+             onClick={() => setActiveTab('Home')} // Reuse home for logs for now or implement dedicated log view
+           />
+        </div>
 
-        {/* Transaction Detail Overlay */}
+        {/* Modal Entry Form */}
         <AnimatePresence>
-          {selectedTx && (
-            <div className="absolute inset-0 z-40 flex items-end">
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setSelectedTx(null)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-              />
-              <motion.div 
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                className="w-full bg-[#16161A] rounded-t-[2.5rem] border-t border-white/10 p-8 z-50 relative min-h-[60vh] flex flex-col gap-6"
-              >
-                <div className="w-12 h-1 bg-white/10 rounded-full self-center mb-2" />
-                
-                <header className="flex justify-between items-start">
-                  <div>
-                    <span className={cn(
-                      "px-3 py-1 rounded-full text-[10px] font-bold border",
-                      selectedTx.type === Category.EXPENSE ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                    )}>
-                      {selectedTx.type}
-                    </span>
-                    <h3 className="text-2xl font-light mt-3">{selectedTx.merchant || 'Unknown Entity'}</h3>
-                    <p className="text-zinc-500 text-sm mt-1">{format(selectedTx.timestamp, 'MMMM dd, yyyy · HH:mm')}</p>
-                  </div>
-                  <div className={cn("text-2xl font-bold", selectedTx.type === Category.EXPENSE ? "text-rose-400" : "text-emerald-400")}>
-                    ₹{selectedTx.amount}
-                  </div>
-                </header>
-
-                <div className="bg-black/30 rounded-2xl p-5 border border-white/5 space-y-4">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Parser Trace Log</span>
-                    <div className="text-xs text-blue-400/80 mono leading-relaxed italic">
-                      "{selectedTx.rawMessage}"
+          {showAddModal && (
+            <div className="absolute inset-0 z-[60] flex items-end justify-center p-0 bg-black/60 backdrop-blur-sm">
+               <motion.div 
+                 initial={{ y: "100%" }}
+                 animate={{ y: 0 }}
+                 exit={{ y: "100%" }}
+                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                 className="bg-[#0E0E12] w-full p-8 pb-12 rounded-t-[3.5rem] border-t border-white/10 space-y-8 shadow-3xl"
+               >
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col">
+                       <h2 className="text-xl font-black italic tracking-tighter">
+                         {editingTransaction ? 'REVISE' : 'LOG'} {modalType === Category.EXPENSE ? 'PAYMENT' : 'RECEIPT'}
+                       </h2>
+                       <span className="text-[8px] text-zinc-600 font-black tracking-widest mt-1 uppercase italic">Identity: {txId(editingTransaction)}</span>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
-                    <DebugLine label="Reference" value={selectedTx.txnId || 'N/A'} />
-                    <DebugLine label="Method" value={selectedTx.account ? `ENDING ${selectedTx.account}` : 'UPI'} />
-                    <DebugLine label="Confidence" value={`${(selectedTx.confidence * 100).toFixed(1)}%`} />
-                    <DebugLine label="AI Refinement" value={selectedTx.isAiProcessed ? 'YES' : 'NO'} />
-                  </div>
-                  <div className="text-[10px] text-zinc-700 leading-tight mono border-t border-white/5 pt-4">
-                    REGEXP MATCH:<br />
-                    {"\\s?(\\d+[\\,\\d]*\\.?\\d*) -> Group [0]"}
-                  </div>
-                </div>
-
-                <div className="mt-auto flex flex-col gap-3">
-                  {!selectedTx.isAiProcessed && (
-                    <button 
-                      onClick={() => refineWithAi(selectedTx)}
-                      className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold transition-all shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2"
-                    >
-                      <Zap size={18} className="fill-white" />
-                      Refine using Gemini AI
+                    <button onClick={resetForm} className="w-10 h-10 bg-white/5 rounded-full flex items-center justify-center text-zinc-400 hover:text-white transition-colors">
+                      <X size={20} />
                     </button>
-                  )}
-                  <button 
-                    onClick={() => {
-                      deleteTransaction(selectedTx.id);
-                      setSelectedTx(null);
-                    }}
-                    className="w-full py-4 text-rose-400 font-bold hover:bg-rose-500/5 rounded-2xl transition-colors flex items-center justify-center gap-2"
-                  >
-                    <Trash size={18} />
-                    Discard Transaction
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+                  </div>
 
-        {/* Sync Simulation Portal */}
-        <AnimatePresence>
-          {showSyncModal && (
-            <div className="absolute inset-0 z-[60] flex items-center justify-center p-6">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowSyncModal(false)} className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full bg-[#16161A] p-8 rounded-[2.5rem] border border-white/10 space-y-6">
-                <div>
-                  <h3 className="text-xl font-light text-blue-400">Sync Simulation</h3>
-                  <p className="text-xs text-zinc-500 mt-1 italic">Web apps simulate SMS receiving through the portal below.</p>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Sync From Date</label>
-                    <input 
-                      type="date" 
-                      value={syncSinceDate}
-                      onChange={(e) => setSyncSinceDate(e.target.value)}
-                      className="bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-sm text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-600 appearance-none"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Raw SMS Input Data</label>
-                    <textarea 
-                      value={rawSmsInput}
-                      onChange={(e) => setRawSmsInput(e.target.value)}
-                      placeholder="Paste bank SMS here..."
-                      className="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-xs mono focus:outline-none focus:ring-1 focus:ring-blue-600"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => setRawSmsInput(`Sent Rs 1200.00 to Pizza Hut UPI Ref 9123812\nCredited with INR 50000.00 - Google Salary\nDebited Rs 400.00 at Starbucks x9912`)} className="px-4 py-3 bg-white/5 text-[10px] font-bold rounded-xl active:bg-white/10">LOAD SAMPLES</button>
-                  <button onClick={handleSyncSubmit} className="flex-1 py-3 bg-blue-600 rounded-xl font-bold shadow-lg shadow-blue-900/40">SIMULATE SMS SCAN</button>
-                </div>
-                <p className="text-[9px] text-zinc-700 text-center uppercase tracking-tighter font-bold">
-                  Note: Browser security prevents direct SMS access. <br/>
-                  Native APK build required for live background sync.
-                </p>
-              </motion.div>
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-4">
+                       <div className="space-y-2">
+                          <label className="text-[9px] text-zinc-600 font-black tracking-widest ml-1">VALUE (₹)</label>
+                          <div className="relative">
+                             <input 
+                               type="number" 
+                               required
+                               placeholder="0.00"
+                               value={amount}
+                               onChange={(e) => setAmount(e.target.value)}
+                               className="w-full bg-white/5 border border-white/5 rounded-2xl p-5 text-4xl font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-600 transition-all placeholder:text-zinc-800"
+                             />
+                             <div className="absolute right-5 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                <div className={cn(
+                                   "w-2 h-2 rounded-full",
+                                   modalType === Category.EXPENSE ? "bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.4)]" : "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                                )} />
+                             </div>
+                          </div>
+                       </div>
+
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-[9px] text-zinc-600 font-black tracking-widest ml-1">BUCKET</label>
+                            <input 
+                              type="text" 
+                              required
+                              placeholder="e.g. FOOD"
+                              value={categoryName}
+                              onChange={(e) => setCategoryName(e.target.value)}
+                              className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-xs font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[9px] text-zinc-600 font-black tracking-widest ml-1">ACCOUNT</label>
+                            <input 
+                              type="text" 
+                              placeholder="e.g. UPI / CASH"
+                              value={bank}
+                              onChange={(e) => setBank(e.target.value)}
+                              className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-xs font-black text-white focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
+                            />
+                          </div>
+                       </div>
+
+                       <div className="space-y-2">
+                          <label className="text-[9px] text-zinc-600 font-black tracking-widest ml-1">ANNOTATION</label>
+                          <textarea 
+                            placeholder="WHAT WAS THIS FOR?"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            className="w-full bg-white/5 border border-white/5 rounded-2xl p-4 text-[10px] font-bold text-zinc-400 focus:outline-none focus:ring-1 focus:ring-blue-600 h-24 uppercase"
+                          />
+                       </div>
+                    </div>
+
+                    <div className="flex gap-4">
+                        {editingTransaction && (
+                          <button 
+                             type="button"
+                             onClick={() => {
+                               deleteTransaction(editingTransaction.id);
+                               resetForm();
+                             }}
+                             className="w-20 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center hover:bg-rose-500/20 transition-all"
+                          >
+                             <Trash2 size={20} />
+                          </button>
+                        )}
+                        <button 
+                          type="submit"
+                          className={cn(
+                            "flex-1 py-5 rounded-[2rem] font-black text-xs tracking-[0.2em] transition-all active:scale-95 shadow-xl",
+                            modalType === Category.EXPENSE ? "bg-white text-black shadow-white/5" : "bg-blue-600 text-white shadow-blue-600/20"
+                          )}
+                        >
+                          {editingTransaction ? 'UPDATE LOG' : 'CONFIRM ENTRY'}
+                        </button>
+                    </div>
+                  </form>
+               </motion.div>
             </div>
           )}
         </AnimatePresence>
@@ -539,77 +553,52 @@ export default function App() {
   );
 }
 
-function StatCardSmall({ label, value, type, icon }: { label: string, value: number, type: 'income' | 'expense', icon: React.ReactNode }) {
-  return (
-    <div className="bg-[#16161A] p-5 rounded-[1.5rem] border border-white/5 space-y-2">
-      <div className={cn("w-8 h-8 rounded-full flex items-center justify-center", type === 'income' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500')}>
-        {icon}
-      </div>
-      <div className="flex flex-col">
-        <span className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest">{label}</span>
-        <span className="text-lg font-medium text-white truncate">₹{value.toLocaleString('en-IN')}</span>
-      </div>
-    </div>
-  );
+function txId(tx: Transaction | null) {
+  if (!tx) return 'NEW';
+  return tx.id.split('_')[2]?.substring(0, 4).toUpperCase() || 'TX';
 }
 
-function TxItem({ tx, onClick }: { tx: Transaction, onClick: () => void, key?: string | number }) {
+function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active?: boolean, onClick: () => void }) {
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div 
       onClick={onClick}
-      className="bg-[#16161A] hover:bg-white/[0.03] p-4 rounded-[1.5rem] border border-white/5 flex justify-between items-center group cursor-pointer transition-colors active:scale-95"
+      className={cn(
+        "flex flex-col items-center gap-1 transition-all cursor-pointer group",
+        active ? "text-blue-500" : "text-zinc-600 hover:text-zinc-400"
+      )}
     >
-      <div className="flex gap-4 items-center">
-        <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center border", tx.type === Category.EXPENSE ? "bg-rose-500/10 text-rose-500 border-rose-500/10" : "bg-emerald-500/10 text-emerald-500 border-emerald-500/10")}>
-          {tx.type === Category.EXPENSE ? <Zap size={18} /> : <TrendingUp size={18} />}
-        </div>
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-zinc-100 line-clamp-1">{tx.merchant || 'Transaction'}</span>
-            {tx.categoryName && (
-              <span className="text-[8px] bg-white/5 border border-white/5 px-1 rounded text-zinc-500 font-bold uppercase tracking-wider">{tx.categoryName}</span>
-            )}
-          </div>
-          <span className="text-[10px] text-zinc-600 font-bold">{format(tx.timestamp, 'MMM dd · HH:mm')}</span>
-        </div>
-      </div>
-      <div className={cn("text-sm font-bold shrink-0", tx.type === Category.EXPENSE ? "text-rose-400" : "text-emerald-400")}>
-        {tx.type === Category.EXPENSE ? '-' : '+'}₹{Math.abs(tx.amount).toLocaleString('en-IN')}
-      </div>
-    </motion.div>
-  );
-}
-
-function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex flex-col items-center gap-1 group">
-      <div className={cn("p-2 rounded-xl transition-all", active ? "text-blue-500" : "text-zinc-600 group-hover:text-zinc-400")}>
+      <div className={cn(
+        "w-10 h-10 rounded-2xl flex items-center justify-center transition-all",
+        active ? "bg-blue-600/10" : "group-hover:bg-white/5"
+      )}>
         {icon}
       </div>
-      <span className={cn("text-[9px] font-bold uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity", active && "opacity-100 text-blue-500")}>{label}</span>
+      <span className={cn("text-[7px] font-black tracking-widest", active ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function SettingItem({ icon, title, desc, onClick, danger }: { icon: React.ReactNode, title: string, desc: string, onClick: () => void, danger?: boolean }) {
+  return (
+    <button 
+      onClick={onClick}
+      className="w-full bg-[#16161A] border border-white/5 p-5 rounded-[2rem] flex items-center justify-between group hover:bg-white/[0.02] transition-all"
+    >
+      <div className="flex items-center gap-4">
+        <div className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center border border-white/5",
+          danger ? "bg-rose-500/5 text-rose-500" : "bg-white/5 text-zinc-400"
+        )}>
+          {icon}
+        </div>
+        <div className="flex flex-col text-left">
+           <span className={cn("text-[10px] font-black tracking-widest", danger ? "text-rose-500" : "text-zinc-100")}>{title}</span>
+           <span className="text-[9px] text-zinc-600 font-bold mt-1 uppercase italic">{desc}</span>
+        </div>
+      </div>
+      <ChevronRight size={16} className="text-zinc-800 group-hover:text-zinc-400 group-hover:translate-x-1 transition-all" />
     </button>
-  );
-}
-
-function RuleItem({ title, desc, active }: { title: string, desc: string, active: boolean }) {
-  return (
-    <div className="p-4 bg-[#16161A] border border-white/5 rounded-2xl flex justify-between items-center group hover:border-blue-600/20 transition-all">
-       <div className="flex flex-col gap-1">
-         <span className="text-sm font-semibold text-white group-hover:text-blue-400 transition-colors">{title}</span>
-         <span className="text-xs text-zinc-600 leading-relaxed">{desc}</span>
-       </div>
-       <div className={cn("w-2 h-2 rounded-full", active ? "bg-emerald-500 status-glow" : "bg-zinc-800")} />
-    </div>
-  );
-}
-
-function DebugLine({ label, value }: { label: string, value: string }) {
-  return (
-    <div className="flex flex-col">
-      <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">{label}</span>
-      <span className="text-xs text-white mono font-semibold">{value}</span>
-    </div>
   );
 }
